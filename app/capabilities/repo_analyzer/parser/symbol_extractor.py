@@ -54,6 +54,24 @@ class SymbolExtractor:
     def _get_text(self, content: bytes, node: tree_sitter.Node) -> str:
         return content[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
+    def _extract_depends_injections(
+        self,
+        func_node: tree_sitter.Node,
+        content: bytes,
+        depends_default_query: object,
+        depends_keyword_query: object,
+    ) -> list[str]:
+        """Extract FastAPI Depends(get_db) injected names from function parameters."""
+        injected: list[str] = []
+        for query in (depends_default_query, depends_keyword_query):
+            caps = query.captures(func_node)
+            dep_funcs = caps.get("dep_func", [])
+            injected_names = caps.get("injected_name", [])
+            for dep_n, inj_n in zip(dep_funcs, injected_names):
+                if self._get_text(content, dep_n) == "Depends":
+                    injected.append(self._get_text(content, inj_n))
+        return injected
+
     def _get_parent_class(self, node: tree_sitter.Node, content: bytes) -> str | None:
         """Walk parent chain to find enclosing class_definition. Return class name or None."""
         current = node.parent
@@ -108,6 +126,31 @@ class SymbolExtractor:
                 ])
                 """,
             )
+            # FastAPI Depends() injection: def route(db=Depends(get_db)) or db: Session = Depends(get_db)
+            depends_default_query = Query(
+                language,
+                """
+                [
+                    (default_parameter
+                        value: (call
+                            function: (identifier) @dep_func
+                            arguments: (argument_list (identifier) @injected_name)))
+                    (typed_default_parameter
+                        value: (call
+                            function: (identifier) @dep_func
+                            arguments: (argument_list (identifier) @injected_name)))
+                ]
+                """,
+            )
+            depends_keyword_query = Query(
+                language,
+                """
+                (keyword_argument
+                    value: (call
+                        function: (identifier) @dep_func
+                        arguments: (argument_list (identifier) @injected_name)))
+                """,
+            )
 
             # FIX 1: captures() returns dict {"capture_name": [Node, ...]}
             class_name_nodes = classes_query.captures(root).get("class_name", [])
@@ -141,8 +184,15 @@ class SymbolExtractor:
                 # FIX 4: Call extraction scoped to func_node
                 call_captures = calls_query.captures(func_node)
                 call_names = [
-                    n.text.decode("utf-8") for n in call_captures.get("call_name", [])
+                    self._get_text(content, n)
+                    for n in call_captures.get("call_name", [])
                 ]
+                # FastAPI Depends() injection pass
+                call_names.extend(
+                    self._extract_depends_injections(
+                        func_node, content, depends_default_query, depends_keyword_query
+                    )
+                )
                 call_names = list(dict.fromkeys(call_names))
                 symbols.append(
                     Symbol(

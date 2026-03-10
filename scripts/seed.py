@@ -34,6 +34,113 @@ CAPABILITIES = [
         "tags": ["repo", "analysis", "architecture", "dependencies"],
     },
     {
+        "id": "symbol_lookup",
+        "name": "Symbol Lookup",
+        "description": "Look up a symbol by name. Returns definition location, callers, and callees.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo_path": {"type": "string"},
+                "symbol": {"type": "string"},
+                "module": {"type": "string"},
+            },
+            "required": ["repo_path", "symbol"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "found": {"type": "boolean"},
+                "symbol": {"type": "string"},
+                "file": {"type": "string"},
+                "callers": {"type": "array"},
+                "calls": {"type": "array"},
+            },
+        },
+        "examples": [{"repo_path": "/path/to/repo", "symbol": "main"}],
+        "reliability": 0.9,
+        "tags": ["code", "symbol", "lookup", "definition"],
+    },
+    {
+        "id": "call_graph",
+        "name": "Call Graph",
+        "description": "Get the call graph for a symbol up to N hops deep.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo_path": {"type": "string"},
+                "symbol": {"type": "string"},
+                "depth": {"type": "integer", "default": 2},
+            },
+            "required": ["repo_path", "symbol"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "root": {"type": "string"},
+                "nodes": {"type": "array"},
+                "edges": {"type": "array"},
+            },
+        },
+        "examples": [{"repo_path": "/path/to/repo", "symbol": "main", "depth": 2}],
+        "reliability": 0.9,
+        "tags": ["code", "graph", "calls", "dependencies"],
+    },
+    {
+        "id": "impact_analysis",
+        "name": "Impact Analysis",
+        "description": "Analyze what breaks if a symbol changes. Returns risk score and affected callers.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo_path": {"type": "string"},
+                "symbol": {"type": "string"},
+                "module": {"type": "string"},
+            },
+            "required": ["repo_path", "symbol"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "risk_score": {"type": "string"},
+                "change_surface": {"type": "integer"},
+                "direct_callers": {"type": "array"},
+                "affected_files": {"type": "array"},
+            },
+        },
+        "examples": [{"repo_path": "/path/to/repo", "symbol": "get_db"}],
+        "reliability": 0.9,
+        "tags": ["code", "impact", "safety", "refactor"],
+    },
+    {
+        "id": "safe_rename",
+        "name": "Safe Rename",
+        "description": "Find all locations that need updating for a symbol rename. Read-only, no changes made.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo_path": {"type": "string"},
+                "symbol": {"type": "string"},
+                "new_name": {"type": "string"},
+            },
+            "required": ["repo_path", "symbol", "new_name"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "is_safe": {"type": "boolean"},
+                "changes_required": {"type": "array"},
+                "total_files_affected": {"type": "integer"},
+            },
+        },
+        "examples": [{"repo_path": "/path/to/repo", "symbol": "get_db", "new_name": "get_session"}],
+        "reliability": 0.9,
+        "tags": ["code", "rename", "refactor", "safety"],
+    },
+    {
         "id": "security_scanner",
         "name": "Security Scanner",
         "description": "Runs static analysis to detect vulnerabilities and dependency issues",

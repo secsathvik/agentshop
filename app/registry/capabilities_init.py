@@ -1,6 +1,12 @@
 """Register all v1 capabilities on startup."""
 
-from app.capabilities.repo_analyzer.analyzer import analyze_async
+from app.capabilities.repo_analyzer.analyzer import (
+    handle_architecture_summary,
+    handle_call_graph,
+    handle_impact_analysis,
+    handle_safe_rename,
+    handle_symbol_lookup,
+)
 from app.registry.registry import CapabilityRegistry
 from app.schemas.capability import CapabilityInfo
 
@@ -20,7 +26,7 @@ def _stub_handler(capability_id: str):
 
 def register_capabilities(registry: CapabilityRegistry) -> None:
     """Register all v1 capabilities. Call during app startup."""
-    # repo_analyzer
+    # repo_analyzer (default behavior, backwards compatible)
     registry.register(
         "repo_analyzer",
         CapabilityInfo(
@@ -57,7 +63,142 @@ def register_capabilities(registry: CapabilityRegistry) -> None:
             reliability=0.9,
             tags=["repo", "analysis", "architecture", "dependencies"],
         ),
-        analyze_async,
+        handle_architecture_summary,
+    )
+
+    # symbol_lookup
+    registry.register(
+        "symbol_lookup",
+        CapabilityInfo(
+            id="symbol_lookup",
+            name="Symbol Lookup",
+            description="Look up a symbol by name. Returns definition location, callers, and callees.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "repo_path": {"type": "string"},
+                    "symbol": {"type": "string"},
+                    "module": {"type": "string"},
+                },
+                "required": ["repo_path", "symbol"],
+            },
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "found": {"type": "boolean"},
+                    "symbol": {"type": "string"},
+                    "file": {"type": "string"},
+                    "callers": {"type": "array"},
+                    "calls": {"type": "array"},
+                    "error": {"type": ["string", "null"]},
+                },
+            },
+            examples=[{"repo_path": "/path/to/repo", "symbol": "main"}],
+            reliability=0.9,
+            tags=["code", "symbol", "lookup", "definition"],
+        ),
+        handle_symbol_lookup,
+    )
+
+    # call_graph
+    registry.register(
+        "call_graph",
+        CapabilityInfo(
+            id="call_graph",
+            name="Call Graph",
+            description="Get the call graph for a symbol up to N hops deep.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "repo_path": {"type": "string"},
+                    "symbol": {"type": "string"},
+                    "depth": {"type": "integer", "default": 2},
+                },
+                "required": ["repo_path", "symbol"],
+            },
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "root": {"type": "string"},
+                    "nodes": {"type": "array"},
+                    "edges": {"type": "array"},
+                    "error": {"type": ["string", "null"]},
+                },
+            },
+            examples=[{"repo_path": "/path/to/repo", "symbol": "main", "depth": 2}],
+            reliability=0.9,
+            tags=["code", "graph", "calls", "dependencies"],
+        ),
+        handle_call_graph,
+    )
+
+    # impact_analysis
+    registry.register(
+        "impact_analysis",
+        CapabilityInfo(
+            id="impact_analysis",
+            name="Impact Analysis",
+            description="Analyze what breaks if a symbol changes. Returns risk score and affected callers.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "repo_path": {"type": "string"},
+                    "symbol": {"type": "string"},
+                    "module": {"type": "string"},
+                },
+                "required": ["repo_path", "symbol"],
+            },
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "risk_score": {"type": "string"},
+                    "change_surface": {"type": "integer"},
+                    "direct_callers": {"type": "array"},
+                    "affected_files": {"type": "array"},
+                    "error": {"type": ["string", "null"]},
+                },
+            },
+            examples=[{"repo_path": "/path/to/repo", "symbol": "get_db"}],
+            reliability=0.9,
+            tags=["code", "impact", "safety", "refactor"],
+        ),
+        handle_impact_analysis,
+    )
+
+    # safe_rename
+    registry.register(
+        "safe_rename",
+        CapabilityInfo(
+            id="safe_rename",
+            name="Safe Rename",
+            description="Find all locations that need updating for a symbol rename. Read-only, no changes made.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "repo_path": {"type": "string"},
+                    "symbol": {"type": "string"},
+                    "new_name": {"type": "string"},
+                },
+                "required": ["repo_path", "symbol", "new_name"],
+            },
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "is_safe": {"type": "boolean"},
+                    "changes_required": {"type": "array"},
+                    "total_files_affected": {"type": "integer"},
+                    "error": {"type": ["string", "null"]},
+                },
+            },
+            examples=[{"repo_path": "/path/to/repo", "symbol": "get_db", "new_name": "get_session"}],
+            reliability=0.9,
+            tags=["code", "rename", "refactor", "safety"],
+        ),
+        handle_safe_rename,
     )
 
     # security_scanner

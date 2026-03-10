@@ -2,6 +2,7 @@
 
 from app.capabilities.repo_analyzer.graph.code_graph import (
     CodeGraph,
+    CodeKnowledgeGraph,
     build_graph,
 )
 from app.capabilities.repo_analyzer.graph.graph_cache import (
@@ -12,6 +13,7 @@ from app.capabilities.repo_analyzer.graph.graph_cache import (
 
 __all__ = [
     "CodeGraph",
+    "CodeKnowledgeGraph",
     "build_graph",
     "GraphCache",
     "load_cached_graph",
